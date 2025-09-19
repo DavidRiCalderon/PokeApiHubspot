@@ -1,13 +1,18 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { pool } from "../../repository/database";
 
-
+// Companies
 import { HubspotCompanyService } from "../../service/external/hubspotService/LocationHubspotService";
 import { RepositoryLocation } from "../../repository/RepositoryLocation";
 
-
+// Moves (custom object)
 import { RepositoryMove } from "../../repository/RepositoryMove";
 import { MoveHubspotService } from "../../service/external/hubspotService/MoveHubspotService";
+
+// Pokemons (contacts)
+import { PokeRepository } from "../../repository/PokeRepository";
+import { PokemonHubspotService } from "../../service/external/hubspotService/PokeHubspotService";
+
 
 const router = Router();
 //-------------------------------------------------------------------------companies-----------------------------------------------
@@ -90,6 +95,51 @@ router.post(
       res.status(202).json({
         ok: true,
         message: "Sincronización de moves ejecutada (revisa logs).",
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+//---------------------------------------------------------------------------------pokemon--------------------------------------------
+
+const repoPokemon = new PokeRepository(pool);
+const pokemonSvc = new PokemonHubspotService(repoPokemon);
+
+router.get(
+  "/hubspot/pokemons/pending",
+  async (_req: Request, res: Response, next: NextFunction) => {
+    try {
+      const pending = await repoPokemon.findNotSynced(2000);
+      res.json({
+        ok: true,
+        count: pending.length,
+        sample: pending.slice(0, 10).map((p) => ({
+          id: p.idPokemon,
+          name: p.name,
+          hp: p.hp,
+          attack: p.attack,
+          defense: p.defense,
+          special_attack: p.specialAttack,
+          special_defense: p.specialDefense,
+          speed: p.speed,
+        })),
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+router.post(
+  "/hubspot/pokemons/sync",
+  async (_req: Request, res: Response, next: NextFunction) => {
+    try {
+      await pokemonSvc.syncPokemonsAsContactsBatch();
+      res.status(202).json({
+        ok: true,
+        message: "Sincronización de pokemons ejecutada (revisa logs).",
       });
     } catch (err) {
       next(err);
