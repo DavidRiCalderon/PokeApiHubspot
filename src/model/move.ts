@@ -2,7 +2,7 @@ export interface Move{
     idMove : number;
     name : string;
     pp : number;
-    power : number;
+    power? : number | null;
     idMoveHubspot? : number | null;
 }
 

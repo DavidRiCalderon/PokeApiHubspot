@@ -95,7 +95,7 @@ export class LocationBuildService {
     if (locationUrls.size === 0) return results;
 
     // 4) Obtener cada location/{id}, mapear y persistir + relacionar (const m of data.moves.slice(0, 20)
-    for (const locUrl of Array.from(locationUrls).slice(0, 10)) {
+    for (const locUrl of Array.from(locationUrls).slice(0, 5)) {
       try {
         const locResp = await axios.get(locUrl);
         if (locResp.status !== 200) continue;
