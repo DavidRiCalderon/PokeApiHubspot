@@ -79,7 +79,7 @@ export class TypeBuildService {
         // 2) Crear relación en Pokemon_type
         const linked = await this.linkPokemonType(pokemonDbId, dbTypeId);
         if (linked) {
-          console.log(`🔗 Relacionado type ${name} (id ${dbTypeId}) con pokemon ${pokemonDbId}`);
+          //console.log(`🔗 Relacionado type ${name} (id ${dbTypeId}) con pokemon ${pokemonDbId}`);
         } else {
           console.log(`⚠️ Relación ya existía: type ${name} ↔ pokemon ${pokemonDbId}`);
         }

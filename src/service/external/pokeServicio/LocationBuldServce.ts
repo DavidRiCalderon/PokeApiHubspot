@@ -131,7 +131,7 @@ export class LocationBuildService {
         try {
           const linked = await this.linkPokemonLocation(pokemonDbId, dbLocationId);
           if (linked) {
-            console.log(`📍 Relacionado location ${loc.name} (id ${dbLocationId}) con pokemon ${pokemonDbId}`);
+            //console.log(`📍 Relacionado location ${loc.name} (id ${dbLocationId}) con pokemon ${pokemonDbId}`);
           } else {
             console.log(`⚠️ Relación ya existía: location ${loc.name} ↔ pokemon ${pokemonDbId}`);
           }

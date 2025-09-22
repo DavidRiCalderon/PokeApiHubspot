@@ -5,7 +5,7 @@ import { RepositoryMove } from "../../../repository/RepositoryMove";
 import { RepositoryPokeMove } from "../../../repository/RepositoryPokeMove";
 import { pool } from "../../../repository/database"; 
 
-// Type chiquito, solo lo necesario
+
 export type PokemonApiMovesData = {
   moves: Array<{ move: { name: string; url: string } }>;
 };
@@ -50,7 +50,7 @@ export class MoveBuildService {
   ): Promise<Move[]> {
     const moves: Move[] = [];
 
-    for (const m of data.moves.slice(0, 20)) {
+    for (const m of data.moves.slice(0, 15)) {
       const moveUrl = m.move.url;
 
       try {
@@ -76,7 +76,7 @@ export class MoveBuildService {
           // 2) Crear relación en Poke_move
           const linked = await this.linkPokemonMove(pokemonDbId, dbMoveId);
           if (linked) {
-            console.log(`🔗 Relacionado move ${move.name} (id ${dbMoveId}) con pokemon ${pokemonDbId}`);
+            //console.log(`🔗 Relacionado move ${move.name} (id ${dbMoveId}) con pokemon ${pokemonDbId}`);
           } else {
             console.log(`⚠️ Relación ya existía: move ${move.name} ↔ pokemon ${pokemonDbId}`);
           }

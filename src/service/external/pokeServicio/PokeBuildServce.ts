@@ -65,7 +65,7 @@ export class PokeBuildService {
             // 2) Moves + relación Poke_move
             try {
               const moves = await this.moveSvc.fetchMovesFromPokemonData(data, dbId);
-              console.log(`🎯 ${pokemon.name} tiene ${moves.length} movimientos cargados`);
+              //console.log(`🎯 ${pokemon.name} tiene ${moves.length} movimientos cargados`);
             } catch (e) {
               console.error("⚠️ Error procesando moves:", e instanceof Error ? e.message : e);
             }
@@ -73,7 +73,7 @@ export class PokeBuildService {
             // 3) Types + relación Pokemon_type
             try {
               const types = await this.typeSvc.fetchTypesFromPokemonData(data, dbId);
-              console.log(`🌟 ${pokemon.name} tiene ${types.length} tipos cargados`);
+              //console.log(`🌟 ${pokemon.name} tiene ${types.length} tipos cargados`);
             } catch (e) {
               console.error("⚠️ Error procesando types:", e instanceof Error ? e.message : e);
             }
@@ -81,7 +81,7 @@ export class PokeBuildService {
             // 4) Locations + relación Poke_location
             try {
               const locations = await this.locationSvc.fetchLocationsFromPokemonData(data, dbId);
-              console.log(`📍 ${pokemon.name} tiene ${locations.length} locations cargadas`);
+              //console.log(`📍 ${pokemon.name} tiene ${locations.length} locations cargadas`);
             } catch (e) {
               console.error("⚠️ Error procesando locations:", e instanceof Error ? e.message : e);
             }
