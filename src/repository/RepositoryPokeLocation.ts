@@ -7,7 +7,7 @@ type PokemonIdRow = RowDataPacket & { id_pokemon: number };
 type AssocRow = RowDataPacket & {
   idPokemon: number;
   idLocation: number;
-  contactHubspotId: string;  // lo leemos como string para no truncar (luego casteamos a string en payload)
+  contactHubspotId: string;  
   companyHubspotId: string;
 };
 

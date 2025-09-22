@@ -1,4 +1,3 @@
-// src/repository/RepositoryPokeMove.ts
 import { Pool, ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { PokeMove } from "../model/PokeMove";
 
@@ -77,7 +76,7 @@ export class RepositoryPokeMove {
     return rows.map(r => ({
       idPokemon: r.id_pokemon,
       idMove: r.id_move,
-      contactHubspotId: String(r.contactHubspotId!), // como string para no truncar BIGINT
+      contactHubspotId: String(r.contactHubspotId!), 
       moveHubspotId: String(r.moveHubspotId!),
     }));
   }

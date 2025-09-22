@@ -16,12 +16,10 @@ import { PokemonHubspotService } from "../../service/external/hubspotService/Pok
 
 const router = Router();
 //-------------------------------------------------------------------------companies-----------------------------------------------
-// Singletons (si prefieres DI, inyecta en app.ts)
 const repo = new RepositoryLocation(pool);
 const hubspotSvc = new HubspotCompanyService(repo);
 
-// POST /api/hubspot/companies/sync
-// Dispara la sincronización batch: DB → HubSpot, y guarda hs_object_id en DB
+
 router.post(
   "/hubspot/companies/sync",
   async (req: Request, res: Response, next: NextFunction) => {
@@ -37,8 +35,7 @@ router.post(
   }
 );
 
-// GET /api/hubspot/companies/pending
-// Devuelve cuántas locations faltan por subir (id_location_hubspot IS NULL)
+
 router.get(
   "/hubspot/companies/pending",
   async (_req: Request, res: Response, next: NextFunction) => {
@@ -55,7 +52,6 @@ router.get(
   }
 );
 
-// GET /api/health
 router.get("/health", (_req, res) => {
   res.json({ ok: true, service: "hubspot-sync", status: "healthy" });
 });
@@ -148,12 +144,11 @@ router.post(
 );
 //---------------------------------------------------------------------------------association Location Pokemon--------------------------------------------
 
-// src/routes/hubspotRoutes.ts (añade estos endpoints)
 import { AssociationService } from "../../service/external/hubspotService/AssociationLocationHubspotService";
 
 const assocSvc = new AssociationService();
 
-// Contact → Company
+
 router.post(
   "/hubspot/associations-location/contacts-to-companies",
   async (_req, res, next) => {
@@ -164,7 +159,7 @@ router.post(
   }
 );
 
-// Company → Contact
+
 router.post(
   "/hubspot/associations-location/companies-to-contacts",
   async (_req, res, next) => {
@@ -175,7 +170,6 @@ router.post(
   }
 );
 
-// Ambos sentidos
 router.post(
   "/hubspot/associations-location/both",
   async (_req, res, next) => {
@@ -188,7 +182,6 @@ router.post(
 
 //---------------------------------------------------------------------------------association move Pokemon--------------------------------------------
 
-// src/routes/hubspotRoutes.ts (añade estas)
 import { AssociationPokemonMoveService } from "../../service/external/hubspotService/AssociationMoveHubspotService";
 const assocPkmMove = new AssociationPokemonMoveService();
 

@@ -1,11 +1,7 @@
-// src/service/pokeServicio/PokeBuildService.ts
 import axios, { AxiosError } from "axios";
 import { Pokemon } from "../../../model/Pokemon";
 import { PokeRepository } from "../../../repository/PokeRepository";
-// ⚠️ Ajusta esta ruta según dónde esté tu database.ts
 import { pool } from "../../../repository/database";
-
-// Asegúrate que los nombres de archivo/clase coincidan
 import { MoveBuildService, PokemonApiMovesData } from "./MoveBuildServce";
 import { TypeBuildService, PokemonApiTypesData } from "./typeBuildServce";
 import { LocationBuildService, PokemonApiLocationsData } from "./LocationBuldServce";
@@ -33,7 +29,6 @@ export class PokeBuildService {
         const response = await axios.get(`https://pokeapi.co/api/v2/pokemon/${id}`);
 
         if (response.status === 200) {
-          // Unimos los tipos mínimos que usamos en los servicios
           const data = response.data as PokemonApiMovesData & PokemonApiTypesData & PokemonApiLocationsData & any;
 
           const pokemon: Pokemon = {

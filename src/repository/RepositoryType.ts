@@ -23,11 +23,9 @@ export class RepositoryType {
     ]);
 
     if (res.affectedRows > 0) {
-      // Insertó uno nuevo
       return type.idType ?? res.insertId;
     }
 
-    // Ya existía: consultar id
     const [rows] = await this.pool.execute<TypeIdRow[]>(
       "SELECT id_type FROM Type WHERE name_type = ? LIMIT 1",
       [type.name]

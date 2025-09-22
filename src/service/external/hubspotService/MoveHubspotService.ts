@@ -1,4 +1,3 @@
-// src/service/external/hubspotService/MoveHubspotService.ts
 import axios from "axios";
 import dotenv from "dotenv";
 dotenv.config();
@@ -7,14 +6,14 @@ import { RepositoryMove } from "../../../repository/RepositoryMove";
 import { pool } from "../../../repository/database";
 
 const HUBSPOT_TOKEN = process.env.HUBSPOT_TOKEN!;
-const HUBSPOT_MOVE_OBJECT_ENV = process.env.HUBSPOT_MOVE_OBJECT || ""; // ej: "2-1234567" o "p12345678_move"
-const HUBSPOT_MOVE_UPLOAD_LIMIT = Number(process.env.HUBSPOT_MOVE_UPLOAD_LIMIT || "100"); // 👈 límite por default
+const HUBSPOT_MOVE_OBJECT_ENV = process.env.HUBSPOT_MOVE_OBJECT || ""; 
+const HUBSPOT_MOVE_UPLOAD_LIMIT = Number(process.env.HUBSPOT_MOVE_UPLOAD_LIMIT || "100"); 
 
 type HubSpotSchema = {
-  name: string;                    // ej: "move"
+  name: string;                   
   labels?: { singular?: string; plural?: string };
-  objectTypeId: string;            // ej: "2-1234567"
-  fullyQualifiedName: string;      // ej: "p12345678_move"
+  objectTypeId: string;           
+  fullyQualifiedName: string;      
 };
 type HubSpotSchemasResponse = { results: HubSpotSchema[] };
 
@@ -104,7 +103,6 @@ export class MoveHubspotService {
       return;
     }
 
-    // 👇 Aplicar límite
     const toProcess = pendingAll.slice(0, Math.max(0, limit));
     if (toProcess.length < pendingAll.length) {
       console.log(
@@ -118,17 +116,15 @@ export class MoveHubspotService {
     const createUrl = `https://api.hubapi.com/crm/v3/objects/${encodeURIComponent(objectType)}/batch/create`;
     const readUrl   = `https://api.hubapi.com/crm/v3/objects/${encodeURIComponent(objectType)}/batch/read`;
 
-    // HubSpot permite lotes de hasta 100 inputs por request
+
     for (const batch of chunk(toProcess, 100)) {
-      // Construir inputs con la propiedad *custom object* "id" = id_move (clave de correlación)
       const inputs: HubSpotBatchCreateInput[] = batch.map((mv) => ({
         objectWriteTraceId: String(mv.idMove),
         properties: {
-          // 🔴 Usa los *internal names* reales del objeto custom "move" en tu portal:
-          id: mv.idMove,            // (custom) clave de correlación
-          name: mv.name,            // (custom)
-          pp: mv.pp,                // (custom)
-          power: mv.power ?? 0,     // (custom) si nullable, decide si envías null o 0
+          id: mv.idMove,          
+          name: mv.name,        
+          pp: mv.pp,                
+          power: mv.power ?? 0,  
         },
       }));
 
@@ -163,7 +159,7 @@ export class MoveHubspotService {
         if (missingProps) {
           const ids = remoteResults.map(r => ({ id: r.id }));
           const readBody: HubSpotBatchReadBody = {
-            properties: ["id"], // 👈 necesitamos la propiedad custom "id"
+            properties: ["id"], 
             inputs: ids,
           };
 

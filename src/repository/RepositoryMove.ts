@@ -11,7 +11,6 @@ import { Move } from "../model/Move";
  *  id_move_hubspot BIGINT NULL
  */
 
-// Fila cruda desde MySQL
 type MoveRow = RowDataPacket & {
   id_move: number;
   name: string;
@@ -49,18 +48,17 @@ export class RepositoryMove {
       ...(hasId ? [move.idMove] : []),
       move.name,
       move.pp,
-      move.power ?? null,           // power puede ser NULL en la DB
-      move.idMoveHubspot ?? null,   // normalmente null al crear
+      move.power ?? null,           
+      move.idMoveHubspot ?? null,  
     ];
 
     const [res] = await this.pool.execute<ResultSetHeader>(sql, params);
 
     if (res.affectedRows > 0) {
-      // Se insertó (no fue ignorado por duplicado)
+
       return hasId ? (move.idMove as number) : Number(res.insertId);
     }
 
-    // Duplicado por name → obtener id existente
     const [rows] = await this.pool.execute<RowDataPacket[]>(
       "SELECT id_move FROM Move WHERE name = ? LIMIT 1",
       [move.name]
@@ -85,8 +83,8 @@ export class RepositoryMove {
       idMove: r.id_move,
       name: r.name,
       pp: r.pp,
-      power: r.power,                   // puede ser null
-      idMoveHubspot: r.id_move_hubspot, // BIGINT en DB → number | null en TS
+      power: r.power,                  
+      idMoveHubspot: r.id_move_hubspot, 
     }));
   }
 

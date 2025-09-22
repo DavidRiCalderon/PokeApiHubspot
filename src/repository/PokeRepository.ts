@@ -1,4 +1,3 @@
-// src/repository/PokeRepository.ts
 import { Pool, ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import { Pokemon } from "../model/Pokemon";
 
@@ -11,7 +10,7 @@ type PokemonRow = RowDataPacket & {
   special_defense: number;
   special_attack: number;
   speed: number;
-  id_poke_hubspot: number | null; // BIGINT en DB
+  id_poke_hubspot: number | null; 
 };
 
 export class PokeRepository {
@@ -55,7 +54,6 @@ export class PokeRepository {
     return hasId ? (pokemon.idPokemon as number) : Number(res.insertId);
   }
 
-  // === NUEVOS MÉTODOS ===
 
   async readPokemons(): Promise<Pokemon[]> {
     const [rows] = await this.pool.query<PokemonRow[]>(

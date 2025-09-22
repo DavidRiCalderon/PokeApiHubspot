@@ -39,7 +39,7 @@ export class TypeBuildService {
         idPokemon: pokemonId,
         idType: typeId,
       });
-      return inserted; // true si insertó, false si ya existía
+      return inserted;
     } catch (err) {
       if (err instanceof Error) {
         console.error(`❌ Error creando relación Pokemon_type (${pokemonId}, ${typeId}):`, err.message);
@@ -56,15 +56,13 @@ export class TypeBuildService {
    */
   async fetchTypesFromPokemonData(
     data: PokemonApiTypesData,
-    pokemonDbId: number, // id del Pokémon en tu BD (Pokemon.id_pokemon)
+    pokemonDbId: number,
   ): Promise<Type[]> {
     const types: Type[] = [];
-
-    // Un Pokémon suele tener 1–2 tipos, pero iteramos todos por si acaso
     for (const t of data.types) {
-      const name = t.type.name;             // ej: "fire"
-      const url = t.type.url;               // ej: "https://pokeapi.co/api/v2/type/10/"
-      const maybeApiId = this.extractIdFromUrl(url); // ej: 10 (opcional)
+      const name = t.type.name;           
+      const url = t.type.url;              
+      const maybeApiId = this.extractIdFromUrl(url);
 
       const type: Type = {
         idType: maybeApiId, 

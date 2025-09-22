@@ -1,4 +1,3 @@
-// src/service/external/hubspotService/AssociationPokemonMoveService.ts
 import axios from "axios";
 import dotenv from "dotenv";
 dotenv.config();
@@ -7,8 +6,7 @@ import { pool } from "../../../repository/database";
 import { RepositoryPokeMove } from "../../../repository/RepositoryPokeMove";
 
 const HUBSPOT_TOKEN = process.env.HUBSPOT_TOKEN!;
-const HUBSPOT_MOVE_OBJECT_ENV = process.env.HUBSPOT_MOVE_OBJECT || ""; // ej: "2-1234567" o "pXXXX_move"
-// Puedes cambiar estos nombres si quieres otra etiqueta
+const HUBSPOT_MOVE_OBJECT_ENV = process.env.HUBSPOT_MOVE_OBJECT || ""; 
 const ASSOC_LABEL = process.env.HUBSPOT_ASSOC_LABEL || "Move Relation";
 const ASSOC_NAME  = process.env.HUBSPOT_ASSOC_NAME  || "move_relation";
 
@@ -46,7 +44,7 @@ function chunk<T>(arr: T[], size: number): T[][] {
 }
 
 export class AssociationPokemonMoveService {
-  private moveObjectType: string | null = null; // ej: "2-1234567"
+  private moveObjectType: string | null = null; 
   private contactToMoveTypeId: number | null = null;
   private moveToContactTypeId: number | null = null;
 
@@ -54,7 +52,7 @@ export class AssociationPokemonMoveService {
 
   /** Resuelve el objectType real del custom object "move" */
   private async resolveMoveObjectType(): Promise<string> {
-    // 1) Si viene en ENV y parece válido, úsalo
+    
     if (HUBSPOT_MOVE_OBJECT_ENV && /^(2-\d+|p\d+_move)$/i.test(HUBSPOT_MOVE_OBJECT_ENV)) {
       this.moveObjectType = HUBSPOT_MOVE_OBJECT_ENV;
       return this.moveObjectType;
@@ -125,7 +123,7 @@ export class AssociationPokemonMoveService {
     toType: string,
     desiredLabel = ASSOC_LABEL,
     desiredName = ASSOC_NAME,
-    inverseLabel?: string // opcional por si quieres pares (p.ej. "Entrenador" / "Pokémon")
+    inverseLabel?: string 
   ): Promise<number> {
     // 1) Buscar existente
     let labels = await this.getLabels(fromType, toType);
@@ -198,8 +196,6 @@ export class AssociationPokemonMoveService {
   /** Crea asociaciones Contact → Move */
   async associateContactsToMoves(batchSize = 100): Promise<void> {
     const moveType = await this.resolveMoveObjectType();
-
-    // Asegura que exista un typeId usable para ESTA dirección (contacts -> move)
     const typeId =
       this.contactToMoveTypeId ??
       (await this.ensureAssocTypeId("contacts", moveType, ASSOC_LABEL, ASSOC_NAME));
@@ -217,8 +213,6 @@ export class AssociationPokemonMoveService {
   /** Crea asociaciones Move → Contact (si quieres explícito en ambos sentidos) */
   async associateMovesToContacts(batchSize = 100): Promise<void> {
     const moveType = await this.resolveMoveObjectType();
-
-    // Asegura que exista un typeId usable para ESTA dirección (move -> contacts)
     const typeId =
       this.moveToContactTypeId ??
       (await this.ensureAssocTypeId(moveType, "contacts", ASSOC_LABEL, ASSOC_NAME));

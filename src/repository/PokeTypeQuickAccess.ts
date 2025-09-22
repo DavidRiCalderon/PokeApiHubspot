@@ -1,4 +1,3 @@
-// src/repository/TypeQuickAccess.ts (helper opcional)
 import { Pool, RowDataPacket } from "mysql2/promise";
 
 type TypeRow = RowDataPacket & { id_type: number; name_type: string };

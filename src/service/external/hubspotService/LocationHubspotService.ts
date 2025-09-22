@@ -1,4 +1,3 @@
-// src/service/external/hubspotService/HubspotCompanyService.ts
 import axios from "axios";
 import dotenv from "dotenv";
 dotenv.config();
@@ -13,12 +12,12 @@ const HUBSPOT_COMPANY_UPLOAD_LIMIT = Number(process.env.HUBSPOT_COMPANY_UPLOAD_L
 
 // Tipos para batch create / read
 type HubSpotBatchCreateInput = {
-  objectWriteTraceId?: string; // para depurar correlación
+  objectWriteTraceId?: string; 
   properties: Record<string, any>;
 };
 
 type HubSpotCompanyResult = {
-  id: string; // hs_object_id
+  id: string; 
   properties?: Record<string, any>;
   createdAt?: string;
   updatedAt?: string;
@@ -101,7 +100,6 @@ export class HubspotCompanyService {
       const inputs: HubSpotBatchCreateInput[] = [];
 
       for (const loc of batch) {
-        // tolera ambos nombres (idLocation o id_location) según tu repo
         const idLocal =
           String((loc as any).idLocation ?? (loc as any).id_location ?? "").trim();
         if (!idLocal) {
@@ -116,10 +114,10 @@ export class HubspotCompanyService {
           objectWriteTraceId: idLocal,
           properties: {
             name: (loc as any).name,
-            phone: idLocal,                         // 👈 clave de correlación
-            country: (loc as any).region,           // region → country
-            generation: (loc as any).generation,    // (custom) crea la prop o comenta esta línea
-            number_of_areas: numberAreas,           // (custom) crea la prop o comenta esta línea
+            phone: idLocal,                         
+            country: (loc as any).region,          
+            generation: (loc as any).generation,    
+            number_of_areas: numberAreas,          
           },
         });
       }
@@ -160,7 +158,7 @@ export class HubspotCompanyService {
         if (missingProps) {
           const ids = remoteResults.map((r) => ({ id: r.id }));
           const readBody: HubSpotBatchReadBody = {
-            properties: ["phone"], // sólo necesitamos correlación
+            properties: ["phone"], 
             inputs: ids,
           };
 

@@ -1,6 +1,5 @@
-// Objeto de dominio (usado en tu app)
 export interface Pokemon {
-  idPokemon : number;          // opcional porque es autoincrement
+  idPokemon : number;          
   name: string;
   hp: number;
   attack: number;
@@ -8,10 +7,10 @@ export interface Pokemon {
   specialDefense: number;
   specialAttack: number;
   speed: number;
-  idPokeHubspot?: number | null; // puede ser null en la BD
+  idPokeHubspot?: number | null; 
 }
 
-// Objeto tal como viene de la BD
+
 export interface PokemonDBRow {
   id_pokemon: number;
   name: string;

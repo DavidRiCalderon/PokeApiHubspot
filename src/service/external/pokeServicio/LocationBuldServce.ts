@@ -6,7 +6,7 @@ import { pool } from "../../../repository/database";
 
 // Tipo mínimo que necesitamos del JSON de /pokemon/{id}
 export type PokemonApiLocationsData = {
-  location_area_encounters: string; // URL a /pokemon/{id}/encounters
+  location_area_encounters: string; 
 };
 
 export class LocationBuildService {
@@ -27,7 +27,7 @@ export class LocationBuildService {
         idPokemon: pokemonId,
         idLocation: locationId,
       });
-      return inserted; // true si insertó, false si ya existía
+      return inserted;
     } catch (err) {
       if (err instanceof Error) {
         console.error(`❌ Error creando relación Poke_location (${pokemonId}, ${locationId}):`, err.message);
@@ -44,7 +44,7 @@ export class LocationBuildService {
    */
   async fetchLocationsFromPokemonData(
     data: PokemonApiLocationsData,
-    pokemonDbId: number, // id del Pokémon en tu BD (Pokemon.id_pokemon)
+    pokemonDbId: number, 
   ): Promise<Location[]> {
     const results: Location[] = [];
 
@@ -100,13 +100,12 @@ export class LocationBuildService {
         const locResp = await axios.get(locUrl);
         if (locResp.status !== 200) continue;
 
-        const ld = locResp.data; // location data (/api/v2/location/{id})
+        const ld = locResp.data; 
         const loc: Location = {
-          idLocation: ld.id, // ⚠️ tu tabla Location NO es AUTO_INCREMENT, usamos el id de la API
+          idLocation: ld.id, 
           name: ld.name,
-          numberArea: Array.isArray(ld.areas) ? ld.areas.length : 0, // contamos áreas
+          numberArea: Array.isArray(ld.areas) ? ld.areas.length : 0, 
           region: ld?.region?.name ?? "",
-          // game_indices es un array con { game_index, generation }, tomamos la primera generación si existe
           generation: Array.isArray(ld.game_indices) && ld.game_indices[0]?.generation?.name
             ? ld.game_indices[0].generation.name
             : "",
@@ -123,7 +122,6 @@ export class LocationBuildService {
           } else {
             console.error("❌ Error BD desconocido al guardar Location:", dbErr);
           }
-          // seguimos al siguiente location
           continue;
         }
 

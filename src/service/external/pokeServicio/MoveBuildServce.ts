@@ -1,4 +1,3 @@
-// src/service/pokeServicio/MoveBuildService.ts
 import axios, { AxiosError } from "axios";
 import { Move } from "../../../model/Move";
 import { RepositoryMove } from "../../../repository/RepositoryMove";
@@ -28,7 +27,7 @@ export class MoveBuildService {
         idPokemon: pokemonId,
         idMove: moveId,
       });
-      return inserted; // true si insertó, false si ya existía
+      return inserted; 
     } catch (err) {
       if (err instanceof Error) {
         console.error(`❌ Error creando relación Poke_move (${pokemonId}, ${moveId}):`, err.message);
@@ -46,7 +45,7 @@ export class MoveBuildService {
    */
   async fetchMovesFromPokemonData(
     data: PokemonApiMovesData,
-    pokemonDbId: number,            // <-- id del Pokémon en tu BD (tabla Pokemon.id_pokemon)
+    pokemonDbId: number,           
   ): Promise<Move[]> {
     const moves: Move[] = [];
 
@@ -58,13 +57,11 @@ export class MoveBuildService {
         if (resp.status !== 200) continue;
 
         const md = resp.data;
-
-        // En la API 'power' puede ser null; tu tabla exige NOT NULL y >= 0
         const move: Move = {
-          idMove: md.id,                 // opcional: puedes traer id de PokeAPI
+          idMove: md.id,             
           name: md.name,
           pp: md.pp ?? 0,
-          power: md.power ?? 0,          // normalizamos null → 0
+          power: md.power ?? 0,        
           idMoveHubspot: null,
         };
 

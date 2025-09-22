@@ -1,4 +1,3 @@
-// src/service/external/hubspotService/PokemonHubspotService.ts
 import axios from "axios";
 import dotenv from "dotenv";
 dotenv.config();
@@ -88,26 +87,19 @@ export class PokemonHubspotService {
       for (const pkm of batch) {
         const typeIds = await this.typeAccess.readTypeIdsByPokemonId(pkm.idPokemon);
         const typeNames = typeIds.map((id) => typeMap.get(id)).filter((n): n is string => !!n);
-        const typesMulti = typeNames.join(";"); // HubSpot multiselect: "Fire;Flying"
+        const typesMulti = typeNames.join(";");
 
         inputs.push({
           objectWriteTraceId: String(pkm.idPokemon),
           properties: {
-            // Usa firstname (no 'name')
             firstname: pkm.name,
-
-            // Clave de correlación: phone = id_pokemon
             phone: String(pkm.idPokemon),
-
-            // Stats (asegúrate de que estas props existan en Contact)
             hp: pkm.hp,
             attack: pkm.attack,
             defense: pkm.defense,
             special_defense: pkm.specialDefense,
             special_attack: pkm.specialAttack,
             speed: pkm.speed,
-
-            // multiselect:
             types: typesMulti,
           },
         });
@@ -137,12 +129,10 @@ export class PokemonHubspotService {
           continue;
         }
 
-        // --- Intentamos correlacionar usando properties de la respuesta ---
         let remoteResults: HubSpotContactResult[] = createBody.results;
         const missingProps = !remoteResults.some((r) => r.properties && "phone" in r.properties);
 
         if (missingProps) {
-          // Fallback: pedir 'phone' de los recién creados
           const ids = remoteResults.map((r) => ({ id: r.id }));
           const readBody: HubSpotBatchReadBody = {
             properties: ["phone"],

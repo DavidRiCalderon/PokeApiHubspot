@@ -4,7 +4,6 @@ import { Location } from "../model/Location";
 // Tipo de fila mínima
 type LocationIdRow = RowDataPacket & { id_location: number };
 
-// Fila completa según la tabla
 type LocationRow = RowDataPacket & {
   id_location: number;
   name: string;
@@ -35,9 +34,9 @@ export class RepositoryLocation {
     `;
 
     const [res] = await this.pool.execute<ResultSetHeader>(sql, [
-      location.idLocation ?? null,       // si mandas null → AUTO_INCREMENT
+      location.idLocation ?? null,       
       location.name,
-      location.numberArea ?? 0,          // 👈 coalesce: NULL → 0
+      location.numberArea ?? 0,          
       location.region ?? null,
       location.generation ?? null,
       location.idLocationHubspot ?? null,
@@ -47,7 +46,7 @@ export class RepositoryLocation {
       return location.idLocation ?? Number(res.insertId);
     }
 
-    // Ya existía → buscar id por name
+  
     const [rows] = await this.pool.execute<LocationIdRow[]>(
       "SELECT id_location FROM Location WHERE name = ? LIMIT 1",
       [location.name]
@@ -73,7 +72,7 @@ export class RepositoryLocation {
     return rows.map((r) => ({
       idLocation: r.id_location,
       name: r.name,
-      numberArea: r.numbre_areas ?? 0,        // 👈 null → 0
+      numberArea: r.numbre_areas ?? 0,        
       region: r.region ?? "",
       generation: r.generation ?? "",
       idLocationHubspot: r.id_location_hubspot,
@@ -87,7 +86,7 @@ export class RepositoryLocation {
   // Sanitizar y asegurar entero
   const safeLimit = Number.isFinite(limit) ? Math.max(1, Math.floor(limit)) : 1000;
 
-  // 👇 OJO: interpolamos sólo un número validado (no hay riesgo de inyección)
+
   const sql = `
     SELECT id_location, name, numbre_areas, region, generation, id_location_hubspot
     FROM Location

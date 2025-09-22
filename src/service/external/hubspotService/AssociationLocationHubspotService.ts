@@ -1,4 +1,3 @@
-// src/service/external/hubspotService/AssociationService.ts
 import axios from "axios";
 import dotenv from "dotenv";
 dotenv.config();
@@ -86,9 +85,9 @@ export class AssociationService {
     }
 
     const inputs: AssocInput[] = pairs.map(p => ({
-      from: { id: p.companyHubspotId },  // Company
-      to:   { id: p.contactHubspotId },  // Contact
-      types: [{ associationCategory: "HUBSPOT_DEFINED", associationTypeId: 280 }], // Company→Contact
+      from: { id: p.companyHubspotId },  
+      to:   { id: p.contactHubspotId },  
+      types: [{ associationCategory: "HUBSPOT_DEFINED", associationTypeId: 280 }], 
     }));
 
     const url = "https://api.hubapi.com/crm/v4/associations/companies/contacts/batch/create";
