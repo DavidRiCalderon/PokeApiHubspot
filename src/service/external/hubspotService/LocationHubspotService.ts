@@ -9,6 +9,7 @@ import { pool } from "../../../repository/database";
 const HUBSPOT_TOKEN = process.env.HUBSPOT_TOKEN!;
 const COMPANY_BATCH_CREATE_URL = "https://api.hubapi.com/crm/v3/objects/companies/batch/create";
 const COMPANY_BATCH_READ_URL   = "https://api.hubapi.com/crm/v3/objects/companies/batch/read";
+const HUBSPOT_COMPANY_UPLOAD_LIMIT = Number(process.env.HUBSPOT_COMPANY_UPLOAD_LIMIT || "100"); // 👈 límite por default
 
 // Tipos para batch create / read
 type HubSpotBatchCreateInput = {
@@ -57,7 +58,7 @@ export class HubspotCompanyService {
   constructor(private repoLoc = new RepositoryLocation(pool)) {}
 
   /**
-   * Sube Locations como Companies en HubSpot en lotes de 100.
+   * Sube Locations como Companies en HubSpot.
    * Correlación: phone (HubSpot) ⇔ id_location (MySQL).
    *
    * Mapeo sugerido:
@@ -67,21 +68,36 @@ export class HubspotCompanyService {
    *  - generation        ← generation             (custom; créala o comenta)
    *  - number_of_areas   ← numbre_areas / numberArea (custom; créala o comenta)
    *
-   * Luego guarda hs_object_id en `Location.id_location_Hubspot`.
+   * Guarda hs_object_id en `Location.id_location_Hubspot`.
+   *
+   * @param limit Máximo de registros a subir en esta corrida (default tomado de ENV)
    */
-  async syncLocationsAsCompaniesBatch(): Promise<void> {
+  async syncLocationsAsCompaniesBatch(limit: number = HUBSPOT_COMPANY_UPLOAD_LIMIT): Promise<void> {
     // 1) Leer pendientes (sin hs id)
-    const pending = await this.repoLoc.findNotSynced(5000);
-    if (pending.length === 0) {
+    const pendingAll = await this.repoLoc.findNotSynced(5000);
+    if (pendingAll.length === 0) {
       console.log("✅ No hay locations pendientes de subir a HubSpot.");
       return;
     }
 
-    // 2) Partir en lotes de 100
-    const batches = chunk(pending, 100);
+    // 2) Aplicar límite
+    const toProcess = pendingAll.slice(0, Math.max(0, limit));
+    if (toProcess.length < pendingAll.length) {
+      console.log(`🧮 Límite activo: procesaré ${toProcess.length} de ${pendingAll.length} locations pendientes.`);
+    } else {
+      console.log(`🧮 Procesaré ${toProcess.length} locations pendientes (sin recorte).`);
+    }
+
+    if (toProcess.length === 0) {
+      console.warn("⚠️ No hay locations dentro del límite para procesar.");
+      return;
+    }
+
+    // 3) Partir en lotes de 100 (límite típico de HubSpot batch)
+    const batches = chunk(toProcess, 100);
 
     for (const batch of batches) {
-      // 3) Construir inputs (phone = id_location) y mandar props
+      // 4) Construir inputs (phone = id_location) y mandar props
       const inputs: HubSpotBatchCreateInput[] = [];
 
       for (const loc of batch) {
@@ -114,7 +130,7 @@ export class HubspotCompanyService {
       }
 
       try {
-        // 4) batch/create
+        // 5) batch/create
         const createResp = await axios.post<HubSpotBatchCreateResponse>(
           COMPANY_BATCH_CREATE_URL,
           { inputs },
@@ -137,7 +153,7 @@ export class HubspotCompanyService {
           continue;
         }
 
-        // 5) Si no vienen properties, pedimos 'phone' por batch/read
+        // 6) Si no vienen properties, pedimos 'phone' por batch/read
         let remoteResults: HubSpotCompanyResult[] = createBody.results;
         const missingProps = !remoteResults.some((r) => r.properties && "phone" in r.properties);
 
@@ -174,7 +190,7 @@ export class HubspotCompanyService {
           }
         }
 
-        // 6) Índice local por id_location (string)
+        // 7) Índice local por id_location (string)
         const localById = new Map<string, (typeof batch)[number]>();
         for (const loc of batch) {
           const idLocal =
@@ -182,7 +198,7 @@ export class HubspotCompanyService {
           if (idLocal) localById.set(idLocal, loc);
         }
 
-        // 7) Mapear por phone normalizado y guardar hs_object_id
+        // 8) Mapear por phone normalizado y guardar hs_object_id
         for (const remote of remoteResults) {
           const hubspotId = Number(remote.id);
           const props = remote.properties || {};
@@ -227,6 +243,6 @@ export class HubspotCompanyService {
       }
     }
 
-    console.log("🎉 Sincronización de locations completa.");
+    console.log("🎉 Sincronización de locations completa (límite aplicado).");
   }
 }

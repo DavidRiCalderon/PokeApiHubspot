@@ -8,6 +8,7 @@ import { pool } from "../../../repository/database";
 
 const HUBSPOT_TOKEN = process.env.HUBSPOT_TOKEN!;
 const HUBSPOT_MOVE_OBJECT_ENV = process.env.HUBSPOT_MOVE_OBJECT || ""; // ej: "2-1234567" o "p12345678_move"
+const HUBSPOT_MOVE_UPLOAD_LIMIT = Number(process.env.HUBSPOT_MOVE_UPLOAD_LIMIT || "100"); // 👈 límite por default
 
 type HubSpotSchema = {
   name: string;                    // ej: "move"
@@ -31,7 +32,6 @@ type HubSpotBatchCreateResponse = {
   status?: string;
 };
 
-// batch/read para custom object
 type HubSpotBatchReadBody = {
   properties?: string[];
   inputs: Array<{ id: string }>;
@@ -93,29 +93,40 @@ export class MoveHubspotService {
   }
 
   /**
-   * Sube los Move locales a HubSpot como custom object "move" y
-   * guarda el hs_object_id en `Move.id_move_hubspot`.
+   * Sube los Move locales a HubSpot como custom object "move" (máximo 'limit').
+   * Guarda el hs_object_id en `Move.id_move_hubspot`.
    * Correlación: property "id" (HubSpot) ⇔ id_move (MySQL).
    */
-  async syncMovesBatch(): Promise<void> {
-    const pending = await this.repo.findNotSynced(5000);
-    if (pending.length === 0) {
+  async syncMovesBatch(limit: number = HUBSPOT_MOVE_UPLOAD_LIMIT): Promise<void> {
+    const pendingAll = await this.repo.findNotSynced(5000);
+    if (pendingAll.length === 0) {
       console.log("✅ No hay moves pendientes de subir a HubSpot.");
       return;
+    }
+
+    // 👇 Aplicar límite
+    const toProcess = pendingAll.slice(0, Math.max(0, limit));
+    if (toProcess.length < pendingAll.length) {
+      console.log(
+        `🧮 Límite activo: procesaré ${toProcess.length} de ${pendingAll.length} moves pendientes.`
+      );
+    } else {
+      console.log(`🧮 Procesaré ${toProcess.length} moves pendientes (sin recorte).`);
     }
 
     const objectType = await this.resolveMoveObjectType();
     const createUrl = `https://api.hubapi.com/crm/v3/objects/${encodeURIComponent(objectType)}/batch/create`;
     const readUrl   = `https://api.hubapi.com/crm/v3/objects/${encodeURIComponent(objectType)}/batch/read`;
 
-    for (const batch of chunk(pending, 100)) {
+    // HubSpot permite lotes de hasta 100 inputs por request
+    for (const batch of chunk(toProcess, 100)) {
       // Construir inputs con la propiedad *custom object* "id" = id_move (clave de correlación)
       const inputs: HubSpotBatchCreateInput[] = batch.map((mv) => ({
         objectWriteTraceId: String(mv.idMove),
         properties: {
           // 🔴 Usa los *internal names* reales del objeto custom "move" en tu portal:
           id: mv.idMove,            // (custom) clave de correlación
-          name: mv.name,            // (custom) nombre del movimiento
+          name: mv.name,            // (custom)
           pp: mv.pp,                // (custom)
           power: mv.power ?? 0,     // (custom) si nullable, decide si envías null o 0
         },
@@ -223,6 +234,6 @@ export class MoveHubspotService {
       }
     }
 
-    console.log("🎉 Sincronización de moves completa.");
+    console.log("🎉 Sincronización de moves completa (límite aplicado).");
   }
 }

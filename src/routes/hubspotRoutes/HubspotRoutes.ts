@@ -155,7 +155,7 @@ const assocSvc = new AssociationService();
 
 // Contact → Company
 router.post(
-  "/hubspot/associations/contacts-to-companies",
+  "/hubspot/associations-location/contacts-to-companies",
   async (_req, res, next) => {
     try {
       await assocSvc.associateContactsToCompanies();
@@ -166,7 +166,7 @@ router.post(
 
 // Company → Contact
 router.post(
-  "/hubspot/associations/companies-to-contacts",
+  "/hubspot/associations-location/companies-to-contacts",
   async (_req, res, next) => {
     try {
       await assocSvc.associateCompaniesToContacts();
@@ -177,7 +177,7 @@ router.post(
 
 // Ambos sentidos
 router.post(
-  "/hubspot/associations/both",
+  "/hubspot/associations-location/both",
   async (_req, res, next) => {
     try {
       await assocSvc.associateBothDirections();
