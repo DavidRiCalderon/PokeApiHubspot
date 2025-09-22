@@ -186,5 +186,32 @@ router.post(
   }
 );
 
+//---------------------------------------------------------------------------------association move Pokemon--------------------------------------------
+
+// src/routes/hubspotRoutes.ts (añade estas)
+import { AssociationPokemonMoveService } from "../../service/external/hubspotService/AssociationMoveHubspotService";
+const assocPkmMove = new AssociationPokemonMoveService();
+
+router.post("/hubspot/associations/pokemons-to-moves", async (_req, res, next) => {
+  try {
+    await assocPkmMove.associateContactsToMoves();
+    res.status(202).json({ ok: true, message: "Creando asociaciones Contact (Pokemon) → Move" });
+  } catch (e) { next(e); }
+});
+
+router.post("/hubspot/associations/moves-to-pokemons", async (_req, res, next) => {
+  try {
+    await assocPkmMove.associateMovesToContacts();
+    res.status(202).json({ ok: true, message: "Creando asociaciones Move → Contact (Pokemon)" });
+  } catch (e) { next(e); }
+});
+
+router.post("/hubspot/associations/pokemons-moves/both", async (_req, res, next) => {
+  try {
+    await assocPkmMove.associateBothDirections();
+    res.status(202).json({ ok: true, message: "Creando asociaciones en ambos sentidos" });
+  } catch (e) { next(e); }
+});
+
 
 export default router;

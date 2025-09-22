@@ -18,4 +18,6 @@ router.get("/pokemons", async (req, res) => {
   }
 });
 
+
+
 export default router;

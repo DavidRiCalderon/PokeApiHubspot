@@ -5,6 +5,12 @@ import { PokeMove } from "../model/PokeMove";
 // Tipos de fila que extienden RowDataPacket
 type MoveIdRow = RowDataPacket & { id_move: number };
 type PokemonIdRow = RowDataPacket & { id_pokemon: number };
+type AssocRow = RowDataPacket & {
+  id_pokemon: number;
+  id_move: number;
+  contactHubspotId: string | number | null;
+  moveHubspotId: string | number | null;
+};
 
 export class RepositoryPokeMove {
   constructor(private pool: Pool) {}
@@ -42,4 +48,39 @@ export class RepositoryPokeMove {
     const [rows] = await this.pool.execute<PokemonIdRow[]>(sql, [moveId]);
     return rows.map(r => r.id_pokemon);
   }
+
+    /**
+   * Devuelve pares listos para asociar:
+   *  - Pokemon.id_poke_hubspot  (CONTACT)
+   *  - Move.id_move_hubspot     (CUSTOM OBJECT)
+   */
+  async findAssociations(limit = 5000): Promise<
+    Array<{ idPokemon: number; idMove: number; contactHubspotId: string; moveHubspotId: string }>
+  > {
+    const safeLimit = Math.max(1, Math.floor(limit));
+    const sql = `
+      SELECT
+        pm.id_pokemon,
+        pm.id_move,
+        p.id_poke_hubspot  AS contactHubspotId,
+        m.id_move_hubspot  AS moveHubspotId
+      FROM Poke_move pm
+      INNER JOIN Pokemon p ON p.id_pokemon = pm.id_pokemon
+      INNER JOIN Move    m ON m.id_move    = pm.id_move
+      WHERE p.id_poke_hubspot IS NOT NULL
+        AND m.id_move_hubspot IS NOT NULL
+      ORDER BY pm.id_pokemon, pm.id_move
+      LIMIT ?
+    `;
+    const [rows] = await this.pool.query<AssocRow[]>(sql, [safeLimit]);
+
+    return rows.map(r => ({
+      idPokemon: r.id_pokemon,
+      idMove: r.id_move,
+      contactHubspotId: String(r.contactHubspotId!), // como string para no truncar BIGINT
+      moveHubspotId: String(r.moveHubspotId!),
+    }));
+  }
 }
+
+
