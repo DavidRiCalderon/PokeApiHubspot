@@ -146,6 +146,45 @@ router.post(
     }
   }
 );
+//---------------------------------------------------------------------------------association Location Pokemon--------------------------------------------
+
+// src/routes/hubspotRoutes.ts (añade estos endpoints)
+import { AssociationService } from "../../service/external/hubspotService/AssociationLocationHubspotService";
+
+const assocSvc = new AssociationService();
+
+// Contact → Company
+router.post(
+  "/hubspot/associations/contacts-to-companies",
+  async (_req, res, next) => {
+    try {
+      await assocSvc.associateContactsToCompanies();
+      res.status(202).json({ ok: true, message: "Creando asociaciones Contact→Company" });
+    } catch (e) { next(e); }
+  }
+);
+
+// Company → Contact
+router.post(
+  "/hubspot/associations/companies-to-contacts",
+  async (_req, res, next) => {
+    try {
+      await assocSvc.associateCompaniesToContacts();
+      res.status(202).json({ ok: true, message: "Creando asociaciones Company→Contact" });
+    } catch (e) { next(e); }
+  }
+);
+
+// Ambos sentidos
+router.post(
+  "/hubspot/associations/both",
+  async (_req, res, next) => {
+    try {
+      await assocSvc.associateBothDirections();
+      res.status(202).json({ ok: true, message: "Creando asociaciones en ambos sentidos" });
+    } catch (e) { next(e); }
+  }
+);
 
 
 export default router;
