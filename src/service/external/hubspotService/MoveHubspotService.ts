@@ -7,7 +7,7 @@ import { RepositoryMove } from "../../../repository/RepositoryMove";
 import { pool } from "../../../repository/database";
 
 const HUBSPOT_TOKEN = process.env.HUBSPOT_TOKEN!;
-const HUBSPOT_MOVE_OBJECT_ENV = process.env.HUBSPOT_MOVE_OBJECT || ""; // si ya lo conoces, pon 2-xxxxxx aquí
+const HUBSPOT_MOVE_OBJECT_ENV = process.env.HUBSPOT_MOVE_OBJECT || ""; // ej: "2-1234567" o "p12345678_move"
 
 type HubSpotSchema = {
   name: string;                    // ej: "move"
@@ -15,18 +15,29 @@ type HubSpotSchema = {
   objectTypeId: string;            // ej: "2-1234567"
   fullyQualifiedName: string;      // ej: "p12345678_move"
 };
-
-type HubSpotSchemasResponse = {
-  results: HubSpotSchema[];
-};
+type HubSpotSchemasResponse = { results: HubSpotSchema[] };
 
 type HubSpotBatchCreateInput = {
   objectWriteTraceId?: string;
   properties: Record<string, any>;
 };
-
+type HubSpotObjectResult = {
+  id: string;
+  properties?: Record<string, any>;
+};
 type HubSpotBatchCreateResponse = {
-  results?: Array<{ id: string; properties?: Record<string, any> }>;
+  results?: HubSpotObjectResult[];
+  errors?: any[];
+  status?: string;
+};
+
+// batch/read para custom object
+type HubSpotBatchReadBody = {
+  properties?: string[];
+  inputs: Array<{ id: string }>;
+};
+type HubSpotBatchReadResponse = {
+  results?: HubSpotObjectResult[];
   errors?: any[];
   status?: string;
 };
@@ -42,15 +53,16 @@ export class MoveHubspotService {
 
   constructor(private repo = new RepositoryMove(pool)) {}
 
+  /** Resuelve el objectTypeId / fullyQualifiedName del custom object "move" */
   private async resolveMoveObjectType(): Promise<string> {
-    // 1) Si viene por ENV y parece un ID válido, úsalo
+    // 1) ENV directo
     if (HUBSPOT_MOVE_OBJECT_ENV && /^(2-\d+|p\d+_move)$/i.test(HUBSPOT_MOVE_OBJECT_ENV)) {
       this.cachedMoveObjectType = HUBSPOT_MOVE_OBJECT_ENV;
-      return HUBSPOT_MOVE_OBJECT_ENV;
+      return this.cachedMoveObjectType;
     }
     if (this.cachedMoveObjectType) return this.cachedMoveObjectType;
 
-    // 2) Descubrirlo por schemas
+    // 2) Descubrir por /schemas
     const resp = await axios.get<HubSpotSchemasResponse>(
       "https://api.hubapi.com/crm/v3/schemas",
       {
@@ -60,8 +72,6 @@ export class MoveHubspotService {
     );
 
     const schemas = resp.data?.results || [];
-
-    // Busca por name "move" o por label "Move"
     const match =
       schemas.find(s => s.name?.toLowerCase() === "move") ||
       schemas.find(s => s.labels?.singular?.toLowerCase() === "move");
@@ -73,10 +83,9 @@ export class MoveHubspotService {
       );
     }
 
-    // Usa objectTypeId (forma más corta) o el fullyQualifiedName
     this.cachedMoveObjectType = match.objectTypeId || match.fullyQualifiedName;
     if (!this.cachedMoveObjectType) {
-      throw new Error("Schema de 'move' encontrado pero sin objectTypeId/fullyQualifiedName.");
+      throw new Error("Schema 'move' encontrado pero sin objectTypeId/fullyQualifiedName.");
     }
 
     console.log(`ℹ️ HubSpot move objectType resuelto: ${this.cachedMoveObjectType}`);
@@ -84,8 +93,9 @@ export class MoveHubspotService {
   }
 
   /**
-   * Sube los Move locales a HubSpot como custom object "move" (resuelto),
-   * captura hs_object_id y lo guarda en id_move_hubspot.
+   * Sube los Move locales a HubSpot como custom object "move" y
+   * guarda el hs_object_id en `Move.id_move_hubspot`.
+   * Correlación: property "id" (HubSpot) ⇔ id_move (MySQL).
    */
   async syncMovesBatch(): Promise<void> {
     const pending = await this.repo.findNotSynced(5000);
@@ -94,26 +104,27 @@ export class MoveHubspotService {
       return;
     }
 
-    const objectType = await this.resolveMoveObjectType(); // ← clave
-    const url = `https://api.hubapi.com/crm/v3/objects/${encodeURIComponent(objectType)}/batch/create`;
+    const objectType = await this.resolveMoveObjectType();
+    const createUrl = `https://api.hubapi.com/crm/v3/objects/${encodeURIComponent(objectType)}/batch/create`;
+    const readUrl   = `https://api.hubapi.com/crm/v3/objects/${encodeURIComponent(objectType)}/batch/read`;
 
-    const batches = chunk(pending, 100);
-
-    for (const batch of batches) {
+    for (const batch of chunk(pending, 100)) {
+      // Construir inputs con la propiedad *custom object* "id" = id_move (clave de correlación)
       const inputs: HubSpotBatchCreateInput[] = batch.map((mv) => ({
         objectWriteTraceId: String(mv.idMove),
         properties: {
-          // Usa los internal names reales de tu objeto custom en HubSpot:
-          id: mv.idMove,              // "Move Id" (prop numérica/entera)
-          name: mv.name,              // "Name"
-          pp: mv.pp,                  // "PP"
-          power: mv.power ?? 0,       // "Power" (si es nullable, decide si mandar null o 0)
+          // 🔴 Usa los *internal names* reales del objeto custom "move" en tu portal:
+          id: mv.idMove,            // (custom) clave de correlación
+          name: mv.name,            // (custom) nombre del movimiento
+          pp: mv.pp,                // (custom)
+          power: mv.power ?? 0,     // (custom) si nullable, decide si envías null o 0
         },
       }));
 
       try {
+        // 1) batch/create
         const resp = await axios.post<HubSpotBatchCreateResponse>(
-          url,
+          createUrl,
           { inputs },
           {
             headers: {
@@ -128,21 +139,76 @@ export class MoveHubspotService {
 
         if (!body?.results?.length) {
           console.warn("⚠️ HubSpot no devolvió results para este batch de moves.");
-        } else {
-          for (let i = 0; i < Math.min(batch.length, body.results.length); i++) {
-            const local = batch[i];
-            const remote = body.results[i];
-            const hubspotId = Number(remote.id); // BIGINT en DB
+          if (body?.errors?.length) {
+            console.error("⚠️ Errores en batch/create (moves):", body.errors);
+          }
+          continue;
+        }
 
-            try {
-              await this.repo.saveHubspotId(local.idMove, hubspotId);
-              console.log(`🏷️ Move ${local.idMove} (${local.name}) → HubSpot ${objectType} id=${hubspotId}`);
-            } catch (e) {
-              console.error(
-                `❌ Error guardando id_move_hubspot para Move ${local.idMove}:`,
-                e instanceof Error ? e.message : e
-              );
+        // 2) Si create no trae properties.id, pedimos batch/read (prop "id") para correlación robusta
+        let remoteResults: HubSpotObjectResult[] = body.results;
+        const missingProps = !remoteResults.some(r => r.properties && ("id" in r.properties));
+
+        if (missingProps) {
+          const ids = remoteResults.map(r => ({ id: r.id }));
+          const readBody: HubSpotBatchReadBody = {
+            properties: ["id"], // 👈 necesitamos la propiedad custom "id"
+            inputs: ids,
+          };
+
+          try {
+            const readResp = await axios.post<HubSpotBatchReadResponse>(
+              readUrl,
+              readBody,
+              {
+                headers: {
+                  Authorization: `Bearer ${HUBSPOT_TOKEN}`,
+                  "Content-Type": "application/json",
+                },
+                validateStatus: (s) => s >= 200 && s < 300,
+              }
+            );
+            if (readResp.data?.results?.length) {
+              remoteResults = readResp.data.results;
+            } else {
+              console.warn("⚠️ batch/read (moves) no devolvió results; continuaré sólo con IDs (menos seguro).");
             }
+          } catch (e: any) {
+            console.warn("⚠️ No se pudo hacer batch/read de moves recién creados:",
+              e?.response?.data ?? e?.message ?? e);
+          }
+        }
+
+        // 3) Índice local por id_move (string)
+        const localById = new Map<string, (typeof batch)[number]>();
+        for (const mv of batch) localById.set(String(mv.idMove), mv);
+
+        // 4) Mapear por property "id" y guardar hs_object_id
+        for (const remote of remoteResults) {
+          const hubspotId = Number(remote.id);
+          const props = remote.properties || {};
+          const key = (props.id != null) ? String(props.id).trim() : "";
+
+          if (!key) {
+            console.warn(`⚠️ ${objectType} HubSpot id=${hubspotId} no trae property "id" para correlación.`);
+            continue;
+          }
+
+          const local = localById.get(key);
+          if (!local) {
+            console.warn(`⚠️ No hay Move local para key='${key}' (prop "id"). HubSpot ${objectType} id=${hubspotId}`);
+            continue;
+          }
+
+          try {
+            await this.repo.saveHubspotId(local.idMove, hubspotId);
+            console.log(`🏷️ Move ${local.idMove} (${local.name}) → HubSpot ${objectType} hs_object_id=${hubspotId}`);
+            localById.delete(key);
+          } catch (e) {
+            console.error(
+              `❌ Error guardando id_move_hubspot para Move ${local.idMove}:`,
+              e instanceof Error ? e.message : e
+            );
           }
         }
 
