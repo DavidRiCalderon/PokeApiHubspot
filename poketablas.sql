@@ -1,3 +1,4 @@
+Drop database pokeApi;
 CREATE DATABASE IF NOT EXISTS pokeApi;
 USE pokeApi;
 
@@ -11,7 +12,7 @@ CREATE TABLE Pokemon (
     special_defense INT NOT NULL CHECK (special_defense >= 0),
     special_attack INT NOT NULL CHECK (special_attack >= 0),
     speed INT NOT NULL CHECK (speed >= 0),
-    id_pokeubspot INT
+    id_poke_hubspot bigint
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- MOVE
@@ -20,55 +21,55 @@ CREATE TABLE Move (
     name VARCHAR(100) NOT NULL UNIQUE,
     pp INT NOT NULL CHECK (pp >= 0),
     power INT NOT NULL CHECK (power >= 0),
-    idMoveHubspot INT
+    id_move_hubspot bigint
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- LOCATION
 CREATE TABLE Location (
-    idLocation INT AUTO_INCREMENT PRIMARY KEY,
+    id_location INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL UNIQUE,
-    numbreAreas TEXT,
+    numbre_areas TEXT,
     region VARCHAR(100),
     generation VARCHAR(50),
-    idLocationHubspot INT
+    id_location_Hubspot bigint
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- TYPE
 CREATE TABLE Type (
-    idType INT AUTO_INCREMENT PRIMARY KEY,
-    nameType VARCHAR(50) NOT NULL UNIQUE
+    id_type INT AUTO_INCREMENT PRIMARY KEY,
+    name_type VARCHAR(50) NOT NULL UNIQUE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- JUNCTIONS
-CREATE TABLE PokeMove (
-    idMove INT NOT NULL,
-    idPokemon INT NOT NULL,
-    PRIMARY KEY (idMove, idPokemon),
-    INDEX ix_pokemove_pokemon (idPokemon),
-    CONSTRAINT fk_pokemove_move
-        FOREIGN KEY (idMove) REFERENCES Move(idMove) ON DELETE CASCADE,
-    CONSTRAINT fk_pokemove_pokemon
-        FOREIGN KEY (idPokemon) REFERENCES Pokemon(idPokemon) ON DELETE CASCADE
+CREATE TABLE Poke_move (
+    id_move INT NOT NULL,
+    id_pokemon INT NOT NULL,
+    PRIMARY KEY (id_move, id_pokemon),
+    INDEX ix_Poke_move_pokemon (id_pokemon),
+    CONSTRAINT fk_Poke_move_move
+        FOREIGN KEY (id_move) REFERENCES Move(id_move) ON DELETE CASCADE,
+    CONSTRAINT fk_Poke_move_pokemon
+        FOREIGN KEY (id_pokemon) REFERENCES Pokemon(id_pokemon) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE PokeLocation (
-    idLocation INT NOT NULL,
-    idPokemon INT NOT NULL,
-    PRIMARY KEY (idLocation, idPokemon),
-    INDEX ix_pokelocation_pokemon (idPokemon),
-    CONSTRAINT fk_pokelocation_location
-        FOREIGN KEY (idLocation) REFERENCES Location(idLocation) ON DELETE CASCADE,
-    CONSTRAINT fk_pokelocation_pokemon
-        FOREIGN KEY (idPokemon) REFERENCES Pokemon(idPokemon) ON DELETE CASCADE
+CREATE TABLE Poke_location (
+    id_location INT NOT NULL,
+    id_pokemon INT NOT NULL,
+    PRIMARY KEY (id_location, id_pokemon),
+    INDEX ix_Poke_location_pokemon (id_pokemon),
+    CONSTRAINT fk_Poke_location_location
+        FOREIGN KEY (id_location) REFERENCES Location(id_location) ON DELETE CASCADE,
+    CONSTRAINT fk_Poke_location_pokemon
+        FOREIGN KEY (id_pokemon) REFERENCES Pokemon(id_pokemon) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE PokemonType (
-    idType INT NOT NULL,
-    idPokemon INT NOT NULL,
-    PRIMARY KEY (idType, idPokemon),
-    INDEX ix_pokemontype_pokemon (idPokemon),
-    CONSTRAINT fk_pokemontype_type
-        FOREIGN KEY (idType) REFERENCES Type(idType) ON DELETE CASCADE,
-    CONSTRAINT fk_pokemontype_pokemon
-        FOREIGN KEY (idPokemon) REFERENCES Pokemon(idPokemon) ON DELETE CASCADE
+CREATE TABLE Pokemon_type (
+    id_type INT NOT NULL,
+    id_pokemon INT NOT NULL,
+    PRIMARY KEY (id_type, id_pokemon),
+    INDEX ix_pokemon_type_pokemon (id_pokemon),
+    CONSTRAINT fk_pokemon_type__type
+        FOREIGN KEY (id_type) REFERENCES `Type`(id_type) ON DELETE CASCADE,
+    CONSTRAINT fk_pokemon_type__pokemon
+        FOREIGN KEY (id_pokemon) REFERENCES Pokemon(id_pokemon) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

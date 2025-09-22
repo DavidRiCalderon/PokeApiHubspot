@@ -1,3 +1,4 @@
+// src/service/external/hubspotService/PokemonHubspotService.ts
 import axios from "axios";
 import dotenv from "dotenv";
 dotenv.config();
@@ -6,19 +7,37 @@ import { PokeRepository } from "../../../repository/PokeRepository";
 import { pool } from "../../../repository/database";
 import { TypeQuickAccess } from "../../../repository/PokeTypeQuickAccess";
 
-// O usa RepositoryPokeType + RepositoryType si prefieres
-
+// Endpoints HubSpot (CRM v3 Contacts)
 const HUBSPOT_TOKEN = process.env.HUBSPOT_TOKEN!;
-const CONTACT_BATCH_URL =
+const CONTACT_BATCH_CREATE_URL =
   "https://api.hubapi.com/crm/v3/objects/contacts/batch/create";
+const CONTACT_BATCH_READ_URL =
+  "https://api.hubapi.com/crm/v3/objects/contacts/batch/read";
 
+// Tipos para batch create / read
 type HubSpotBatchCreateInput = {
   objectWriteTraceId?: string;
   properties: Record<string, any>;
 };
 
+type HubSpotContactResult = {
+  id: string;
+  properties?: Record<string, any>;
+};
+
 type HubSpotBatchCreateResponse = {
-  results?: Array<{ id: string; properties?: Record<string, any> }>;
+  results?: HubSpotContactResult[];
+  errors?: any[];
+  status?: string;
+};
+
+type HubSpotBatchReadBody = {
+  properties?: string[];
+  inputs: Array<{ id: string }>;
+};
+
+type HubSpotBatchReadResponse = {
+  results?: HubSpotContactResult[];
   errors?: any[];
   status?: string;
 };
@@ -29,6 +48,12 @@ function chunk<T>(arr: T[], size: number): T[][] {
   return out;
 }
 
+// Normaliza teléfonos: deja solo dígitos (por si HubSpot formatea)
+function normalizeDigits(value: unknown): string {
+  if (value == null) return "";
+  return String(value).replace(/\D/g, "").trim();
+}
+
 export class PokemonHubspotService {
   constructor(
     private pokeRepo = new PokeRepository(pool),
@@ -36,11 +61,11 @@ export class PokemonHubspotService {
   ) {}
 
   /**
-   * Sube Pokémon como Contactos en HubSpot.
-   * - phone ← id_pokemon (ID local visible)
-   * - name ← name (o firstname si no tienes prop 'name' en Contact)
-   * - hp/attack/defense/special_* / speed (asegúrate que existan en Contact)
-   * - types (multi-checkbox) ← nombres de tipos separados por ';'
+   * Sube Pokémon como Contactos en HubSpot (lotes de 100):
+   *  - firstname       ← name (tu tabla local)
+   *  - phone           ← id_pokemon  (clave de correlación)
+   *  - hp/attack/defense/special_* / speed
+   *  - types (multi-checkbox) ← nombres separados por ';'
    */
   async syncPokemonsAsContactsBatch(): Promise<void> {
     // 1) Cargar pendientes
@@ -57,43 +82,41 @@ export class PokemonHubspotService {
     const batches = chunk(pending, 100);
 
     for (const batch of batches) {
-      // Construir inputs con multi-checkbox 'types'
+      // ---- construir inputs con multi-checkbox 'types' ----
       const inputs: HubSpotBatchCreateInput[] = [];
 
       for (const pkm of batch) {
-        const typeIds = await this.typeAccess.readTypeIdsByPokemonId(
-          pkm.idPokemon
-        );
-
-        const typeNames = typeIds
-          .map((id) => typeMap.get(id))
-          .filter((n): n is string => !!n);
-
-        // HubSpot multi-checkbox: string con valores separados por ';'
-        const typesMulti = typeNames.join(";");
+        const typeIds = await this.typeAccess.readTypeIdsByPokemonId(pkm.idPokemon);
+        const typeNames = typeIds.map((id) => typeMap.get(id)).filter((n): n is string => !!n);
+        const typesMulti = typeNames.join(";"); // HubSpot multiselect: "Fire;Flying"
 
         inputs.push({
           objectWriteTraceId: String(pkm.idPokemon),
           properties: {
-            // Si NO tienes 'name' como propiedad en Contact, usa firstname en su lugar:
+            // Usa firstname (no 'name')
             firstname: pkm.name,
-            // <- usa 'name' solo si existe en tu Contact
-            phone: String(pkm.idPokemon), // ver ID local
+
+            // Clave de correlación: phone = id_pokemon
+            phone: String(pkm.idPokemon),
+
+            // Stats (asegúrate de que estas props existan en Contact)
             hp: pkm.hp,
             attack: pkm.attack,
             defense: pkm.defense,
             special_defense: pkm.specialDefense,
             special_attack: pkm.specialAttack,
             speed: pkm.speed,
-            // multi-checkbox:
-            types: typesMulti, // ej: "Fire;Flying"
+
+            // multiselect:
+            types: typesMulti,
           },
         });
       }
 
       try {
-        const resp = await axios.post<HubSpotBatchCreateResponse>(
-          CONTACT_BATCH_URL,
+        // ---- batch/create ----
+        const createResp = await axios.post<HubSpotBatchCreateResponse>(
+          CONTACT_BATCH_CREATE_URL,
           { inputs },
           {
             headers: {
@@ -104,46 +127,88 @@ export class PokemonHubspotService {
           }
         );
 
-        const body = resp.data;
+        const createBody = createResp.data;
 
-        if (!body?.results?.length) {
-          console.warn(
-            "⚠️ HubSpot no devolvió results para este batch de pokémon."
-          );
-        } else {
-          // Guardar id_poke_hubspot (hs_object_id del contacto)
-          for (
-            let i = 0;
-            i < Math.min(batch.length, body.results.length);
-            i++
-          ) {
-            const local = batch[i];
-            const remote = body.results[i];
-            const hubspotId = Number(remote.id);
+        if (!createBody?.results?.length) {
+          console.warn("⚠️ HubSpot no devolvió results para este batch de pokémon.");
+          if (createBody?.errors?.length) {
+            console.error("⚠️ Errores en batch/create:", createBody.errors);
+          }
+          continue;
+        }
 
-            try {
-              await this.pokeRepo.saveHubspotId(local.idPokemon, hubspotId);
-              console.log(
-                `🏷️ Pokemon ${local.idPokemon} (${local.name}) → Contact id=${hubspotId}`
-              );
-            } catch (e) {
-              console.error(
-                `❌ Error guardando id_poke_hubspot para Pokemon ${local.idPokemon}:`,
-                e instanceof Error ? e.message : e
-              );
+        // --- Intentamos correlacionar usando properties de la respuesta ---
+        let remoteResults: HubSpotContactResult[] = createBody.results;
+        const missingProps = !remoteResults.some((r) => r.properties && "phone" in r.properties);
+
+        if (missingProps) {
+          // Fallback: pedir 'phone' de los recién creados
+          const ids = remoteResults.map((r) => ({ id: r.id }));
+          const readBody: HubSpotBatchReadBody = {
+            properties: ["phone"],
+            inputs: ids,
+          };
+
+          try {
+            const readResp = await axios.post<HubSpotBatchReadResponse>(
+              CONTACT_BATCH_READ_URL,
+              readBody,
+              {
+                headers: {
+                  Authorization: `Bearer ${HUBSPOT_TOKEN}`,
+                  "Content-Type": "application/json",
+                },
+                validateStatus: (s) => s >= 200 && s < 300,
+              }
+            );
+
+            if (readResp.data?.results?.length) {
+              remoteResults = readResp.data.results;
+            } else {
+              console.warn("⚠️ batch/read no devolvió results; continuaré solo con IDs.");
             }
+          } catch (e: any) {
+            console.warn("⚠️ No se pudo hacer batch/read de contactos recién creados:", e?.response?.data ?? e?.message ?? e);
           }
         }
 
-        if (body?.errors?.length) {
-          console.error(
-            "⚠️ HubSpot batch create (contacts) devolvió errores:",
-            body.errors
-          );
+        // ---- Índice local por idPokemon (string) ----
+        const localById = new Map<string, (typeof batch)[number]>();
+        for (const pkm of batch) localById.set(String(pkm.idPokemon), pkm);
+
+        // ---- Recorrer resultados remotos y mapear por phone ----
+        for (const remote of remoteResults) {
+          const hubspotId = Number(remote.id);
+          const props = remote.properties || {};
+          const key = normalizeDigits(props.phone);
+
+          if (!key) {
+            console.warn(`⚠️ Contacto HubSpot id=${hubspotId} no trae phone para correlación.`);
+            continue;
+          }
+
+          const local = localById.get(key);
+          if (!local) {
+            console.warn(`⚠️ No hay Pokémon local para key='${key}' (phone). HubSpot id=${hubspotId}`);
+            continue;
+          }
+
+          try {
+            await this.pokeRepo.saveHubspotId(local.idPokemon, hubspotId);
+            console.log(`🏷️ Pokemon ${local.idPokemon} (${local.name}) → Contact id=${hubspotId}`);
+            localById.delete(key);
+          } catch (e) {
+            console.error(
+              `❌ Error guardando id_poke_hubspot para Pokemon ${local.idPokemon}:`,
+              e instanceof Error ? e.message : e
+            );
+          }
+        }
+
+        if (createBody?.errors?.length) {
+          console.error("⚠️ HubSpot batch create (contacts) devolvió errores:", createBody.errors);
         } else {
-          console.log(
-            `✅ Batch de pokémon subido (${batch.length} contactos).`
-          );
+          console.log(`✅ Batch de pokémon subido (${batch.length} contactos).`);
         }
       } catch (e: any) {
         const msg = e?.response?.data ?? e?.message ?? e;
